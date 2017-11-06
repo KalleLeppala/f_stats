@@ -123,14 +123,14 @@ def f4(table, populations, window, input_type = 0):
 # [0] A two dimensional numpy array containing samples of an i.i.d. random variable. Rows are coordinates and columns are iterations.
 # [1] A one dimensional numpy array containing names for the rows of [0].
 # [2] A numeric multiplier for the covariance matrix of the sample mean (for when [0] is actually computed from blocks of the size [2]).
-# The parameter save decides whether the results will be saved as txt files (save)_sm.txt for the sample mean and
+# The parameter save decides whether the results will be saved as text files (save)_sm.txt for the sample mean and
 # (save)_concentration.txt for the Cholesky decomposition of the inverted covariance matrix.
-# The empty word (default) means no txt files is created.
+# The empty word (default) means no text files is created.
 #
-# The output is a list of three things (and possibly some txt files created).
+# The output is a list of three things (and possibly some text files created).
 # [0] A one dimensional numpy array containing the sample mean of the (multidimensional) random variable.
-# [1] A two dimensional numpy array containing the covariance matrix of that sample mean.
-# [2] A one dimensional numpy array containing names of the coordinates.
+# [1] A one dimensional numpy array containing names of the coordinates.
+# [2] A two dimensional numpy array containing the covariance matrix of that sample mean.
 def jackknife(triplet, save = ""):
     table = triplet[0]
     B = table.shape[1] # The number of resamplings.
@@ -160,7 +160,7 @@ def jackknife(triplet, save = ""):
                     f.write(str(concentration[i, j]))
                     f.write(" ")
                 f.write("\n")
-    return(sm, cov, triplet[1])
+    return(sm, triplet[1], cov)
 
 # Given samples of a (multidimensional) i.i.d. random variable, the function jackknife computes the sample mean and the covariance
 # matrix of the sample mean (not the random variable) using the bootstrap method.
@@ -170,14 +170,14 @@ def jackknife(triplet, save = ""):
 # [1] A one dimensional numpy array containing names for the rows of [0].
 # [2] A numeric multiplier for the covariance matrix of the sample mean (for when [0] is actually computed from blocks of the size [2]).
 # The parameter B is the number of bootstrap resamplings.
-# The parameter save decides whether the results will be saved as txt files (save)_sm.txt for the sample mean and
+# The parameter save decides whether the results will be saved as text files (save)_sm.txt for the sample mean and
 # (save)_concentration.txt for the Cholesky decomposition of the inverted covariance matrix.
-# The empty word (default) means no txt files is created.
+# The empty word (default) means no text files is created.
 #
-# The output is a list of three things (and possibly some txt files created).
+# The output is a list of three things (and possibly some text files created).
 # [0] A one dimensional numpy array containing the sample mean of the (multidimensional) random variable.
-# [1] A two dimensional numpy array containing the covariance matrix of that sample mean.
-# [2] A one dimensional numpy array containing names of the coordinates.
+# [1] A one dimensional numpy array containing names of the coordinates.
+# [2] A two dimensional numpy array containing the covariance matrix of that sample mean.
 def bootstrap(triplet, B = None, save = False):
     table = triplet[0]
     if B == None:
@@ -213,7 +213,32 @@ def bootstrap(triplet, B = None, save = False):
                 f.write(str(concentration[i, j]))
                 f.write(" ")
             f.write("\n")
-    return(sm, cov, triplet[1])
+    return(sm, triplet[1], cov)
+
+# Given samples of a (multidimensional) i.i.d. random variable, the function sample_mean computes just the sample mean.
+#
+# The parameter triplet is (typically) an output of the function f2, f3 or f4. Triplet is a list of three things:
+# [0] A two dimensional numpy array containing samples of an i.i.d. random variable. Rows are coordinates and columns are iterations.
+# [1] A one dimensional numpy array containing names for the rows of [0].
+# [2] A numeric multiplier not used for anything.
+# The parameter save decides whether the result will be saved as text file (save)_sm.txt.
+# The empty word (default) means no text files is created.
+#
+# The output is a list of two things (and possibly a text file created).
+# [0] A one dimensional numpy array containing the sample mean of the (multidimensional) random variable.
+# [1] A one dimensional numpy array containing names of the coordinates.
+def sample_mean(triplet, save = False):
+    table = triplet[0]
+    # Compute the sample mean.
+    sm = table@numpy.ones([table.shape[1], 1])/table.shape[1]
+    if save != "":
+    sm_filename = save + "_sm.txt"
+    with open(sm_filename, "w") as f:
+        for i in range(0, len(sm)):
+            f.write(triplet[1][i])
+            f.write(str(sm[i, 0]))
+            f.write("\n")
+    return(sm, triplet[1])
 
 ########### AUXILIARY FUNCTIONS ###########################################################################################################
 
@@ -236,15 +261,13 @@ def counts_to_frequencies(table, populations):
 # Used to convert table of input type 2) into input type 3) for functions f2, f3 and f4. 
 def frequencies_to_differences(table):
     P = table.shape[1] # Number of populations.
-    D = int(P*(P - 1)/2) # Number of pairs of populations.
     # Create the matrix that transforms allele frequencies into allele frequency differences.
-    diff = numpy.zeros((P, D))
-    t = 0
+    diff = numpy.zeros((P, P))
     for a in range(0, P - 1):
-        for b in range(a + 1, P):
-            diff[a, t] = 1
-            diff[b, t] = - 1
-            t += 1
+        diff[a, a] = 1
+        diff[a + 1, a] = - 1
+    diff[P - 1, P - 1] = 1
+    diff[0, P - 1] = - 1
     return(table@diff)
 
 # The function f4_names takes a numpy array of population names and returns a numpy array of f4-statistic names in the order
