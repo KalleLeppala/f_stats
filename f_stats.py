@@ -1,5 +1,5 @@
 import numpy
-msprime
+
 ########## EXAMPLES #######################################################################################################################
 
 # I'm sorry python is so stupid there is no multiline commenting. It makes these examples pretty hard to run.
@@ -104,7 +104,7 @@ msprime
 # output_type    An optional parameter deciding how estimator_covariance returns the covariance matrix (second element of the output).
 #                1 The default value. Gives an estimate for the covariance matrix of the sample mean, let's call it S.
 #                2 Gives a matrix s such that s^Ts = S.
-#                3 Gives the inverse of s. Nothe that if the statistic collection is not linearly independent, the inverse does not
+#                3 Gives the inverse of s. Note that if the statistic collection is not linearly independent, the inverse does not
 #                  exist and you cannot select output_type = 3. This matrix directly applicable to the R package admixturegraph.
 # save           An optional string, if present will save the output in text files. The file "<save>_sm.txt" contains the sample means
 #                of the statistics along with their names, and the file "<save>_covariance_<output_type>.txt" contains the matrix
@@ -165,6 +165,9 @@ def estimator_covariance(table,
     sm = M.T@sm
     half = half@M
     cov = half.T@half
+    zscore = numpy.zeros(cov.shape[0])
+    for i in range(0, cov.shape[0]):
+        zscore[i] = sm[i]/numpy.sqrt(cov[i, i])
     if output_type == 1:
         result = cov
     if output_type == 2:
@@ -178,12 +181,9 @@ def estimator_covariance(table,
     if save != "":
         sm_filename = save + "_sm.txt"
         with open(sm_filename, "w") as f:
+            f.write("W X Y Z D Z.value\n")
             for i in range(0, len(sm)):
-                f.write(names[i])
-                f.write(" ")
-                f.write(str(sm[i]))
-                if i < len(sm) - 1:
-                    f.write("\n")
+                f.write(names[i] + " " + str(sm[i]) + " " + str(zscore[i]) + "\n")
         result_filename = save + "_covariance_" + str(output_type) + ".txt"
         with open(result_filename, "w") as f:
             for i in range(result.shape[0]):
@@ -191,15 +191,14 @@ def estimator_covariance(table,
                     f.write(str(result[i, j]))
                     if j < result.shape[1] - 1:
                         f.write(" ")
-                if i < result.shape[0] - 1:
-                    f.write("\n")
+                f.write("\n")
     return(sm, result, names)
     
 ########## THE SAMPLER FUNCTION  ##########################################################################################################
 
 # sample
 # Given either allele counts of individuals or allele frequencies of populations, the function sample will compute sample means of all
-# the second degree homogeneous monomials of allele frequencies in blocks. 
+# the second degree homogeneous monomials of allele frequencies in blocks.
 # 
 # table          A two dimensional numpy array of values between zero and input_type, and missing values represented by negative numbers.
 #                These values can be allele counts/dosages of individuals from input_type chromosomes, but also allele frequencies of
@@ -273,7 +272,7 @@ def jackknife(table, coverage):
     sm = numpy.empty(table.shape[0])
     multi = numpy.empty([table.shape[0], table.shape[0]])
     for i in range(0, table.shape[0]):
-        sm[i] = table[i, :]@coverage[:, i, i]/coverage[:, i, i]@numpy.ones(table.shape[1])
+        sm[i] = table[i, :]@coverage[:, i, i]/(coverage[:, i, i]@numpy.ones(table.shape[1]))
         for j in range(0, table.shape[0]):
             multi[i, j] = coverage[:, i, j]@numpy.ones(table.shape[1])
     # Then compute the covariance matrix of the sample mean.
@@ -299,10 +298,10 @@ def jackknife(table, coverage):
 # The function returns a list of two things:
 # [0] A two dimensional numpy array containing the allele frequencies on the population level. Rows are SNPs, columns are populations.
 # [1] A one dimensional numpy array containing the names of the populations, in the order they appear as the columns of table.
-#     The new populations are list(set(populations)), so the original order af appearance from the input might not be kept. 
+#     The new populations are sorted(list(set(populations))). 
 def frequencies(table, populations, input_type):
     scaled_table = table/input_type
-    new_populations = list(set(populations))
+    new_populations = sorted(list(set(populations)))
     new_table = numpy.empty([table.shape[0], len(new_populations)])
     for p in range(0, len(new_populations)):
         v = numpy.where(populations == new_populations[p])[0]
